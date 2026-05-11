@@ -14,6 +14,20 @@ No state overlap between SEPRI1 and SEPRI2.
 
 ## Key Findings
 
+### Sample Structure
+[Script](scripts/02_obs_per_village_full.R) | [Figure](figs/obs_per_village_full_hist.png)
+
+Village sample sizes vary dramatically: 2 to 5,134 HH (2,567x ratio). This extreme variation affects clustering and inference.
+
+**Cluster structure:** 92,996 obs across 193 villages, 83 districts, 13 states
+
+### Panel Attrition (SEPRI2 only)
+[Script](scripts/07_panel_attrition.R) | [Figure](figs/panel_attrition.png)
+
+- Only 2.4% of households are panel HH
+- 0.3% locked houses overall
+- Non-interview reasons: 69% travelling, 24% migrated out
+
 ### Data Quality Issues
 [Script](scripts/04_data_quality.R) | [Figure](figs/data_quality.png)
 
@@ -26,14 +40,6 @@ No state overlap between SEPRI1 and SEPRI2.
 - Land ownership (q1_10): 6.6% missing overall
 - Caste/religion: <0.2% missing
 - Many "3rd choice" variables 99%+ missing (by design)
-
-### Digit Heaping (Land Ownership)
-[Script](scripts/06_interviewer_effects.R) | [Figure](figs/interviewer_effects.png)
-
-Strong evidence of rounding:
-- **40.4% whole numbers** (expected ~10%)
-- **48.8% multiples of 0.5 acres** (expected ~20%)
-- 36.6% of interviewers have >60% whole number responses
 
 ### Interviewer Patterns
 [Script](scripts/03_interviewer_analysis.R) | [Figure](figs/interviewer_time_analysis.png)
@@ -51,6 +57,14 @@ Strong evidence of rounding:
 - SEPRI2: median 120 min
 - End-of-day rushing: duration drops to ~60 min after 5pm
 
+### Digit Heaping (Land Ownership)
+[Script](scripts/06_interviewer_effects.R) | [Figure](figs/interviewer_effects.png)
+
+Strong evidence of rounding:
+- **40.4% whole numbers** (expected ~10%)
+- **48.8% multiples of 0.5 acres** (expected ~20%)
+- 36.6% of interviewers have >60% whole number responses
+
 ### Duration vs Quality
 [Script](scripts/06_interviewer_effects.R) | [Figure](figs/interviewer_effects.png)
 
@@ -58,13 +72,6 @@ Shorter interviews have MORE missing data:
 - SEPRI1 <60 min: 15.2% missing land; 90-120 min: 4.6%
 - SEPRI2 <60 min: 8.5% missing land; 90-120 min: 2.1%
 - Correlation: r = -0.37 (SEPRI1), r = -0.19 (SEPRI2)
-
-### Panel Attrition (SEPRI2 only)
-[Script](scripts/07_panel_attrition.R) | [Figure](figs/panel_attrition.png)
-
-- Only 2.4% of households are panel HH
-- 0.3% locked houses overall
-- Non-interview reasons: 69% travelling, 24% migrated out
 
 ### Interviewer Fixed Effects (Variance Decomposition)
 [Script](scripts/09_interviewer_fe.R) | [Figure](figs/interviewer_fe.png)
@@ -86,11 +93,9 @@ How much variance do interviewers explain beyond village-level differences?
 - Interviewer bias or fabrication
 
 ### Inference Robustness (Clustering Sensitivity)
-[Script](scripts/10_inference_robustness.R) | [Figure](figs/inference_robustness.png) | [Village Size Distribution](scripts/02_obs_per_village_full.R)
+[Script](scripts/10_inference_robustness.R) | [Figure](figs/inference_robustness.png)
 
-Village sizes range from 2 to 5,134 HHs (2,567x ratio). With 193 villages across 13 states, proper clustering is critical.
-
-**Cluster structure:** 92,996 obs, 193 villages, 83 districts, 13 states
+With 193 villages across 13 states and highly unequal cluster sizes, proper clustering is critical.
 
 | Regression | t(HC1) | t(Vill) | t(State) | p(Vill Boot) | p(State Boot) |
 |------------|--------|---------|----------|--------------|---------------|
