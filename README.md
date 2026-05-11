@@ -113,7 +113,30 @@ With 193 villages across 13 states and highly unequal cluster sizes, proper clus
 
 Significance drops from 11/11 (HC1) to 5/11 (state bootstrap). Only 5 specs survive all methods; 6 flip under wild bootstrap. Results should survive both village-level (193 clusters) and state-level (13 clusters) wild bootstrap to be trusted.
 
-### Jensenius (2015) Replication
+### SHRUG Census Linkage
+[Script](scripts/08_shrug_merge.R) | [Figure](figs/shrug_validation.png)
+
+**Matching Results (SEPRI2 → SHRUG via LGD):**
+- 78 of 90 villages fuzzy-matched to LGD (86.7%)
+- 72 villages successfully linked to SHRUG (80%)
+- Match quality: 31 exact, 27 distance=1, 13 distance=2, 7 distance=3
+
+**Validation Correlations:**
+| Comparison | Correlation |
+|------------|-------------|
+| REDS sample size vs SHRUG households | r = 0.43 |
+| REDS SC/ST % vs Census SC/ST % | r = 0.21 |
+
+**Matched Village Characteristics (Census 2011):**
+- Median population: 1,524
+- Median SC/ST %: 22.8% (REDS: 26.8%)
+- Median literacy rate: available in `data/reds_shrug_matched.csv`
+
+## Replications
+
+Re-analysis of published papers using wild cluster bootstrap to assess inference robustness with few clusters.
+
+### Jensenius (2015)
 [Script](scripts/11_jensenius_replication.R) | [Figure](figs/jensenius_replication.png)
 
 Re-analyzed "Development from Representation? A Study of Quotas for the Scheduled Castes in India" (AEJ:Applied, Vol. 7, No. 3, pp. 196-220) with wild cluster bootstrap. With only 15 state clusters, **4 of 10 HC1-significant results flip to non-significant:**
@@ -134,7 +157,7 @@ Re-analyzed "Development from Representation? A Study of Quotas for the Schedule
 
 With only 15 clusters, standard clustered SEs are unreliable. Wild bootstrap is essential.
 
-### Munshi & Rosenzweig (2015) Replication
+### Munshi & Rosenzweig (2015)
 [Script](scripts/12_munshi_rosenzweig_replication.R) | [Figure](figs/munshi_rosenzweig_replication.png)
 
 Re-analyzed "Networks and Misallocation: Insurance, Migration, and the Rural-Urban Wage Gap" (AER, 2015). The original paper uses wild cluster bootstrap for Table 8a (15 state clusters) and standard bootstrap for Table 6 (148 caste clusters).
@@ -160,25 +183,6 @@ Re-analyzed "Networks and Misallocation: Insurance, Migration, and the Rural-Urb
 | Mig ~ jati inc + vill FE | -0.017 | -1.4 | -1.5 | 0.177 |
 
 The negative jati income effect on migration is robust across specifications and inference methods.
-
-### SHRUG Census Linkage
-[Script](scripts/08_shrug_merge.R) | [Figure](figs/shrug_validation.png)
-
-**Matching Results (SEPRI2 → SHRUG via LGD):**
-- 78 of 90 villages fuzzy-matched to LGD (86.7%)
-- 72 villages successfully linked to SHRUG (80%)
-- Match quality: 31 exact, 27 distance=1, 13 distance=2, 7 distance=3
-
-**Validation Correlations:**
-| Comparison | Correlation |
-|------------|-------------|
-| REDS sample size vs SHRUG households | r = 0.43 |
-| REDS SC/ST % vs Census SC/ST % | r = 0.21 |
-
-**Matched Village Characteristics (Census 2011):**
-- Median population: 1,524
-- Median SC/ST %: 22.8% (REDS: 26.8%)
-- Median literacy rate: available in `data/reds_shrug_matched.csv`
 
 ## Geographic Identifiers
 
