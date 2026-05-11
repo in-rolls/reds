@@ -130,10 +130,10 @@ cat("\n\n3. DURATION VS RESPONSE QUALITY\n")
 cat(strrep("-", 40), "\n")
 
 response_quality <- df %>%
-  filter(duration_mins > 0 & duration_mins < 480) %>%
+  filter(duration_mins >= 5 & duration_mins <= 240) %>%
   mutate(duration_cat = cut(duration_mins,
-                            breaks = c(0, 60, 90, 120, 180, 480),
-                            labels = c("<60", "60-90", "90-120", "120-180", ">180"))) %>%
+                            breaks = c(5, 30, 60, 90, 120, 180, 240),
+                            labels = c("5-30", "30-60", "60-90", "90-120", "120-180", "180-240"))) %>%
   filter(!is.na(duration_cat))
 
 quality_by_duration <- response_quality %>%
@@ -167,7 +167,7 @@ cat("\n\n4. INTERVIEWER PRODUCTIVITY VS QUALITY\n")
 cat(strrep("-", 40), "\n")
 
 interviewer_stats <- df %>%
-  filter(duration_mins > 0 & duration_mins < 480) %>%
+  filter(duration_mins >= 5 & duration_mins <= 240) %>%
   group_by(source, interviewer_name) %>%
   summarise(
     n_interviews = n(),

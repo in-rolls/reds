@@ -68,9 +68,9 @@ df <- df %>%
   )
 
 impossible_duration <- df %>%
-  filter(duration_mins < 0 | duration_mins > 480)
+  filter(duration_mins < 5 | duration_mins > 240)
 
-cat(sprintf("Interviews with impossible duration (<0 or >8hrs): %d (%.2f%%)\n",
+cat(sprintf("Interviews with impossible duration (<5min or >4hrs): %d (%.2f%%)\n",
             nrow(impossible_duration), 100 * nrow(impossible_duration) / nrow(df)))
 
 impossible_by_source <- impossible_duration %>%
@@ -96,6 +96,26 @@ p_duration <- ggplot(df %>% filter(duration_mins > -60 & duration_mins < 600),
        title = "Interview Duration Distribution (red line = 0)") +
   theme_minimal() +
   theme(legend.position = "none")
+
+duration_binned <- df %>%
+  filter(!is.na(duration_mins)) %>%
+  mutate(duration_bin = cut(duration_mins,
+                            breaks = c(-Inf, 5, 30, 60, 90, 120, 180, 240, Inf),
+                            labels = c("<5", "5-30", "30-60", "60-90", "90-120", "120-180", "180-240", ">240"),
+                            right = FALSE)) %>%
+  count(source, duration_bin) %>%
+  group_by(source) %>%
+  mutate(pct = 100 * n / sum(n),
+         suspicious = duration_bin %in% c("<5", ">240"))
+
+p_duration_binned <- ggplot(duration_binned, aes(x = duration_bin, y = pct, fill = suspicious)) +
+  geom_col(color = "white", alpha = 0.85) +
+  facet_wrap(~source, ncol = 1) +
+  scale_fill_manual(values = c("FALSE" = "#4a7c9b", "TRUE" = "#d62728"), guide = "none") +
+  labs(x = "Duration (minutes)", y = "Percentage",
+       title = "Duration Distribution by Bin (red = suspicious)") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
 
 cat("\n\n3. DUPLICATE DETECTION\n")
 cat(strrep("-", 40), "\n")
@@ -134,8 +154,8 @@ interviewer_quality <- df %>%
     n_interviews = n(),
     n_states = n_distinct(state),
     pct_missing_land = 100 * sum(is.na(q1_10)) / n(),
-    pct_impossible_duration = 100 * sum(duration_mins < 0 | duration_mins > 480, na.rm = TRUE) / n(),
-    avg_duration = mean(duration_mins[duration_mins > 0 & duration_mins < 480], na.rm = TRUE),
+    pct_impossible_duration = 100 * sum(duration_mins < 5 | duration_mins > 240, na.rm = TRUE) / n(),
+    avg_duration = mean(duration_mins[duration_mins >= 5 & duration_mins <= 240], na.rm = TRUE),
     .groups = "drop"
   ) %>%
   filter(n_interviews >= 10)
@@ -161,7 +181,7 @@ p_interviewer <- ggplot(interviewer_quality, aes(x = pct_impossible_duration, y 
        title = "Interviewer Data Quality (red lines = thresholds)") +
   theme_minimal()
 
-combined <- (p_missing | p_duration) / p_interviewer +
+combined <- (p_missing | p_duration | p_duration_binned) / p_interviewer +
   plot_annotation(title = "Data Quality Analysis",
                   theme = theme(plot.title = element_text(size = 16, face = "bold")))
 

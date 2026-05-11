@@ -1,6 +1,8 @@
 library(haven)
 library(dplyr)
 library(tidyr)
+library(purrr)
+library(tibble)
 library(sandwich)
 library(lmtest)
 library(fwildclusterboot)
@@ -47,170 +49,155 @@ cat(sprintf("\nVillage size: min=%d, median=%d, max=%d (ratio: %.0fx)\n",
             min(village_sizes$n), median(village_sizes$n), max(village_sizes$n),
             max(village_sizes$n) / min(village_sizes$n)))
 
-cat("\n\n1. SE COMPARISON ACROSS METHODS\n")
-cat(strrep("-", 70), "\n")
-
-specs <- list(
-  c("log_land ~ is_sc_st", "Land ~ SC/ST"),
-  c("log_land ~ is_obc", "Land ~ OBC"),
-  c("log_land ~ is_general", "Land ~ General"),
-  c("has_land ~ is_sc_st", "Has Land ~ SC/ST"),
-  c("has_land ~ is_obc", "Has Land ~ OBC"),
-  c("is_sc_st ~ log_land", "SC/ST ~ Land"),
-  c("is_obc ~ log_land", "OBC ~ Land"),
-  c("log_land ~ is_hindu", "Land ~ Hindu"),
-  c("log_land ~ is_muslim", "Land ~ Muslim"),
-  c("is_sc_st ~ is_hindu", "SC/ST ~ Hindu"),
-  c("has_land ~ is_hindu", "Has Land ~ Hindu")
+specs <- tribble(
+  ~formula_str,             ~label,
+  "log_land ~ is_sc_st",    "Land ~ SC/ST",
+  "log_land ~ is_obc",      "Land ~ OBC",
+  "log_land ~ is_general",  "Land ~ General",
+  "has_land ~ is_sc_st",    "Has Land ~ SC/ST",
+  "has_land ~ is_obc",      "Has Land ~ OBC",
+  "is_sc_st ~ log_land",    "SC/ST ~ Land",
+  "is_obc ~ log_land",      "OBC ~ Land",
+  "log_land ~ is_hindu",    "Land ~ Hindu",
+  "log_land ~ is_muslim",   "Land ~ Muslim",
+  "is_sc_st ~ is_hindu",    "SC/ST ~ Hindu",
+  "has_land ~ is_hindu",    "Has Land ~ Hindu"
 )
 
-results <- data.frame(
-  spec = character(),
-  beta = numeric(),
-  se_hc1 = numeric(),
-  se_village = numeric(),
-  se_state = numeric(),
-  t_hc1 = numeric(),
-  t_village = numeric(),
-  t_state = numeric(),
-  sig_hc1 = logical(),
-  sig_village = logical(),
-  sig_state = logical(),
-  stringsAsFactors = FALSE
-)
-
-for (s in specs) {
-  formula_str <- s[1]
-  label <- s[2]
-
+run_inference <- function(formula_str, label, data) {
   vars <- all.vars(as.formula(formula_str))
-  data_clean <- df %>% filter(complete.cases(across(all_of(vars))))
+  data_clean <- data %>% filter(complete.cases(across(all_of(vars))))
 
-  if (nrow(data_clean) < 1000) next
+  if (nrow(data_clean) < 1000) return(NULL)
 
   model <- lm(as.formula(formula_str), data = data_clean)
   beta <- coef(model)[2]
+  param <- names(coef(model))[2]
 
-  se_hc1 <- sqrt(diag(vcovHC(model, type = "HC1")))[2]
+  se_hc1 <- sqrt(vcovHC(model, type = "HC1")[2, 2])
+
   se_village <- tryCatch(
-    sqrt(diag(vcovCL(model, cluster = data_clean$village_id, type = "HC1")))[2],
-    error = function(e) NA
-  )
-  se_state <- tryCatch(
-    sqrt(diag(vcovCL(model, cluster = data_clean$state_id, type = "HC1")))[2],
-    error = function(e) NA
+    sqrt(vcovCL(model, cluster = data_clean$village_id, type = "HC1")[2, 2]),
+    error = function(e) NA_real_
   )
 
-  results <- rbind(results, data.frame(
+  se_state <- tryCatch(
+    sqrt(vcovCL(model, cluster = data_clean$state_id, type = "HC1")[2, 2]),
+    error = function(e) NA_real_
+  )
+
+  p_boot_village <- tryCatch({
+    boot <- boottest(model, clustid = "village_id", param = param, B = 999, type = "webb")
+    boot$p_val
+  }, error = function(e) NA_real_)
+
+  p_boot_state <- tryCatch({
+    boot <- boottest(model, clustid = "state_id", param = param, B = 999, type = "webb")
+    boot$p_val
+  }, error = function(e) NA_real_)
+
+  tibble(
     spec = label,
     beta = beta,
     se_hc1 = se_hc1,
     se_village = se_village,
     se_state = se_state,
     t_hc1 = beta / se_hc1,
-    t_village = beta / se_village,
-    t_state = beta / se_state,
+    t_village = if_else(is.na(se_village), NA_real_, beta / se_village),
+    t_state = if_else(is.na(se_state), NA_real_, beta / se_state),
+    p_boot_village = p_boot_village,
+    p_boot_state = p_boot_state,
     sig_hc1 = abs(beta / se_hc1) > 1.96,
-    sig_village = abs(beta / se_village) > 1.96,
-    sig_state = abs(beta / se_state) > 1.96,
-    stringsAsFactors = FALSE
-  ))
+    sig_village = !is.na(se_village) && abs(beta / se_village) > 1.96,
+    sig_state = !is.na(se_state) && abs(beta / se_state) > 1.96,
+    sig_boot_village = !is.na(p_boot_village) && p_boot_village < 0.05,
+    sig_boot_state = !is.na(p_boot_state) && p_boot_state < 0.05
+  )
 }
 
-cat(sprintf("\n%-20s %8s %8s %8s %8s %6s %6s %6s\n",
-            "Specification", "Beta", "t(HC1)", "t(Vill)", "t(State)", "HC1", "Vill", "State"))
+cat("\n\n1. RUNNING ALL INFERENCE METHODS\n")
+cat(strrep("-", 70), "\n")
+cat("Computing HC1, cluster SEs, and wild bootstrap for all specifications...\n\n")
+
+results <- specs %>%
+  pmap(function(formula_str, label) {
+    cat(sprintf("  %s...\n", label))
+    run_inference(formula_str, label, df)
+  }) %>%
+  compact() %>%
+  bind_rows()
+
+cat("\n\n2. RESULTS COMPARISON\n")
+cat(strrep("-", 70), "\n")
+cat(sprintf("\n%-20s %7s %7s %7s %7s %8s %8s\n",
+            "Specification", "t(HC1)", "t(Vill)", "t(State)", "Sig?", "p(VillBt)", "p(StateBt)"))
 cat(strrep("-", 70), "\n")
 
-for (i in seq_len(nrow(results))) {
-  r <- results[i, ]
-  cat(sprintf("%-20s %8.4f %8.2f %8.2f %8.2f %6s %6s %6s\n",
-              r$spec, r$beta, r$t_hc1, r$t_village, r$t_state,
-              ifelse(r$sig_hc1, "*", ""),
-              ifelse(r$sig_village, "*", ""),
-              ifelse(r$sig_state, "*", "")))
-}
+results %>%
+  rowwise() %>%
+  mutate(
+    sig_str = paste0(
+      if_else(sig_hc1, "H", "-"),
+      if_else(sig_village, "V", "-"),
+      if_else(sig_state, "S", "-"),
+      if_else(sig_boot_village, "v", "-"),
+      if_else(sig_boot_state, "s", "-")
+    ),
+    line = sprintf("%-20s %7.2f %7.2f %7.2f %7s %8.3f %8.3f\n",
+                   spec, t_hc1, t_village, t_state, sig_str,
+                   if_else(is.na(p_boot_village), NA_real_, p_boot_village),
+                   if_else(is.na(p_boot_state), NA_real_, p_boot_state))
+  ) %>%
+  pull(line) %>%
+  cat()
 
-cat("\n\n2. WILD CLUSTER BOOTSTRAP FOR BORDERLINE CASES\n")
-cat(strrep("-", 70), "\n")
-
-borderline_specs <- list(
-  c("log_land ~ is_general", "Land ~ General"),
-  c("log_land ~ is_muslim", "Land ~ Muslim"),
-  c("has_land ~ is_hindu", "Has Land ~ Hindu"),
-  c("is_sc_st ~ is_hindu", "SC/ST ~ Hindu")
-)
-
-boot_results <- data.frame(
-  spec = character(),
-  p_village = numeric(),
-  p_state = numeric(),
-  stringsAsFactors = FALSE
-)
-
-for (s in borderline_specs) {
-  formula_str <- s[1]
-  label <- s[2]
-
-  vars <- all.vars(as.formula(formula_str))
-  data_clean <- df %>% filter(complete.cases(across(all_of(vars))))
-
-  model <- lm(as.formula(formula_str), data = data_clean)
-  param <- names(coef(model))[2]
-
-  cat(sprintf("\n%s:\n", label))
-
-  p_village <- NA
-  p_state <- NA
-
-  boot_v <- tryCatch({
-    boottest(model, clustid = "village_id", param = param, B = 999, type = "webb")
-  }, error = function(e) NULL)
-
-  if (!is.null(boot_v)) {
-    p_village <- boot_v$p_val
-    cat(sprintf("  Village bootstrap: p=%.4f %s\n", p_village, ifelse(p_village < 0.05, "*", "")))
-  }
-
-  boot_s <- tryCatch({
-    boottest(model, clustid = "state_id", param = param, B = 999, type = "webb")
-  }, error = function(e) NULL)
-
-  if (!is.null(boot_s)) {
-    p_state <- boot_s$p_val
-    cat(sprintf("  State bootstrap:   p=%.4f %s\n", p_state, ifelse(p_state < 0.05, "*", "")))
-  }
-
-  boot_results <- rbind(boot_results, data.frame(
-    spec = label, p_village = p_village, p_state = p_state
-  ))
-}
+cat("\nLegend: H=HC1 sig, V=Village cluster sig, S=State cluster sig,\n")
+cat("        v=Village bootstrap sig, s=State bootstrap sig\n")
 
 cat("\n\n3. SUMMARY\n")
 cat(strrep("-", 70), "\n")
 
-cat(sprintf("\nSignificance counts:\n"))
-cat(sprintf("  HC1 (Huber-White):    %d / %d\n", sum(results$sig_hc1), nrow(results)))
-cat(sprintf("  Village clustering:   %d / %d\n", sum(results$sig_village), nrow(results)))
-cat(sprintf("  State clustering:     %d / %d\n", sum(results$sig_state), nrow(results)))
+cat(sprintf("\nSignificance counts (out of %d):\n", nrow(results)))
+cat(sprintf("  HC1 (Huber-White):        %d\n", sum(results$sig_hc1)))
+cat(sprintf("  Village cluster SE:       %d\n", sum(results$sig_village, na.rm = TRUE)))
+cat(sprintf("  State cluster SE:         %d\n", sum(results$sig_state, na.rm = TRUE)))
+cat(sprintf("  Village wild bootstrap:   %d\n", sum(results$sig_boot_village, na.rm = TRUE)))
+cat(sprintf("  State wild bootstrap:     %d\n", sum(results$sig_boot_state, na.rm = TRUE)))
 
-flips_hc1_to_village <- sum(results$sig_hc1 & !results$sig_village)
-flips_village_to_state <- sum(results$sig_village & !results$sig_state)
+cat("\nFlips from HC1:\n")
+cat(sprintf("  HC1 sig -> Village cluster not sig:    %d\n",
+            sum(results$sig_hc1 & !results$sig_village, na.rm = TRUE)))
+cat(sprintf("  HC1 sig -> Village bootstrap not sig:  %d\n",
+            sum(results$sig_hc1 & !results$sig_boot_village, na.rm = TRUE)))
+cat(sprintf("  HC1 sig -> State cluster not sig:      %d\n",
+            sum(results$sig_hc1 & !results$sig_state, na.rm = TRUE)))
+cat(sprintf("  HC1 sig -> State bootstrap not sig:    %d\n",
+            sum(results$sig_hc1 & !results$sig_boot_state, na.rm = TRUE)))
 
-cat(sprintf("\nFlips:\n"))
-cat(sprintf("  HC1 -> Village:  %d specs lose significance\n", flips_hc1_to_village))
-cat(sprintf("  Village -> State: %d specs lose significance\n", flips_village_to_state))
-
-cat("\n\nROBUST RESULTS (survive all methods):\n")
-robust <- results[results$sig_hc1 & results$sig_village & results$sig_state, ]
-for (i in seq_len(nrow(robust))) {
-  cat(sprintf("  %s (t=%.1f at state level)\n", robust$spec[i], robust$t_state[i]))
+cat("\n\nROBUST RESULTS (survive all 5 methods):\n")
+robust <- results %>%
+  filter(sig_hc1, sig_village, sig_state, sig_boot_village, sig_boot_state)
+if (nrow(robust) > 0) {
+  robust %>%
+    mutate(msg = sprintf("  %s: t=%.1f (state), p=%.3f (village boot), p=%.3f (state boot)\n",
+                         spec, t_state, p_boot_village, p_boot_state)) %>%
+    pull(msg) %>%
+    cat()
+} else {
+  cat("  (none)\n")
 }
 
-cat("\nFRAGILE RESULTS (significant with HC1, not with clustering):\n")
-fragile <- results[results$sig_hc1 & (!results$sig_village | !results$sig_state), ]
-for (i in seq_len(nrow(fragile))) {
-  cat(sprintf("  %s: t=%.1f (HC1) -> t=%.1f (village) -> t=%.1f (state)\n",
-              fragile$spec[i], fragile$t_hc1[i], fragile$t_village[i], fragile$t_state[i]))
+cat("\nFRAGILE RESULTS (HC1 sig but fail village or state bootstrap):\n")
+fragile <- results %>%
+  filter(sig_hc1, (!sig_boot_village | !sig_boot_state))
+if (nrow(fragile) > 0) {
+  fragile %>%
+    mutate(msg = sprintf("  %s: t=%.1f (HC1), p=%.3f (vill boot), p=%.3f (state boot)\n",
+                         spec, t_hc1, p_boot_village, p_boot_state)) %>%
+    pull(msg) %>%
+    cat()
+} else {
+  cat("  (none)\n")
 }
 
 cat("\n\n4. VISUALIZATION\n")
@@ -222,59 +209,65 @@ results_long <- results %>%
   mutate(
     method = factor(method,
                     levels = c("t_hc1", "t_village", "t_state"),
-                    labels = c("HC1", "Village", "State")),
-    significant = abs(t_stat) > 1.96
+                    labels = c("HC1", "Village Cluster", "State Cluster"))
   )
 
-p1 <- ggplot(results_long, aes(x = spec, y = abs(t_stat), fill = method)) +
+p1 <- ggplot(results_long, aes(x = reorder(spec, abs(t_stat)), y = abs(t_stat), fill = method)) +
   geom_col(position = "dodge", color = "white", alpha = 0.85) +
   geom_hline(yintercept = 1.96, linetype = "dashed", color = "red") +
-  scale_fill_manual(values = c("HC1" = "#4a7c9b", "Village" = "#d4a574", "State" = "#d62728")) +
-  labs(x = "", y = "|t-statistic|", title = "t-Statistics by Inference Method",
+  scale_fill_manual(values = c("HC1" = "#4a7c9b", "Village Cluster" = "#d4a574", "State Cluster" = "#d62728")) +
+  labs(x = NULL, y = "|t-statistic|", title = "t-Statistics by Inference Method",
        subtitle = "Red line = significance threshold (1.96)") +
   coord_flip() +
   theme_minimal() +
-  theme(legend.position = "bottom")
+  theme(legend.position = "bottom", legend.title = element_blank())
 
-se_ratios <- results %>%
+boot_results <- results %>%
+  select(spec, p_boot_village, p_boot_state) %>%
+  pivot_longer(cols = starts_with("p_boot"), names_to = "level", values_to = "p_value") %>%
   mutate(
-    ratio_village = se_village / se_hc1,
-    ratio_state = se_state / se_hc1
-  ) %>%
-  select(spec, ratio_village, ratio_state) %>%
-  pivot_longer(cols = starts_with("ratio"), names_to = "comparison", values_to = "ratio") %>%
-  mutate(comparison = ifelse(comparison == "ratio_village", "Village/HC1", "State/HC1"))
+    level = factor(level,
+                   levels = c("p_boot_village", "p_boot_state"),
+                   labels = c("Village (193 clusters)", "State (13 clusters)"))
+  )
 
-p2 <- ggplot(se_ratios, aes(x = spec, y = ratio, fill = comparison)) +
-  geom_col(position = "dodge", color = "white", alpha = 0.85) +
-  scale_fill_manual(values = c("Village/HC1" = "#d4a574", "State/HC1" = "#d62728")) +
-  labs(x = "", y = "SE Inflation Ratio", title = "SE Inflation from Clustering") +
+p2 <- ggplot(boot_results, aes(x = reorder(spec, -p_value), y = p_value, fill = p_value < 0.05)) +
+  geom_col(position = "dodge", alpha = 0.85) +
+  geom_hline(yintercept = 0.05, linetype = "dashed", color = "red") +
+  scale_fill_manual(values = c("TRUE" = "#2ca02c", "FALSE" = "#d62728"), guide = "none") +
+  facet_wrap(~level, ncol = 1) +
+  labs(x = NULL, y = "Wild Bootstrap p-value",
+       title = "Wild Cluster Bootstrap p-values",
+       subtitle = "Green = significant (p<0.05), Red line = 0.05 threshold") +
   coord_flip() +
-  theme_minimal() +
-  theme(legend.position = "bottom")
+  theme_minimal()
 
-combined <- p1 / p2 +
+p3 <- ggplot(village_sizes, aes(x = n)) +
+  geom_histogram(bins = 50, fill = "#4a7c9b", color = "white", alpha = 0.85) +
+  geom_vline(aes(xintercept = median(n)), color = "#2ca02c", linetype = "dotted", linewidth = 0.8) +
+  geom_vline(aes(xintercept = mean(n)), color = "#d62728", linetype = "dotted", linewidth = 0.8) +
+  scale_x_log10() +
+  labs(x = "HH per Village (log scale)", y = "Frequency",
+       title = sprintf("Village Size Distribution (n=%d)", nrow(village_sizes)),
+       subtitle = sprintf("Range: %d-%d HH | Green=median, Red=mean",
+                          min(village_sizes$n), max(village_sizes$n))) +
+  theme_minimal()
+
+combined <- (p1 | p3) / p2 +
   plot_annotation(
-    title = "Inference Robustness: HC1 vs Clustered Standard Errors",
+    title = "Inference Robustness: Clustered SEs and Wild Bootstrap",
     theme = theme(plot.title = element_text(size = 16, face = "bold"))
   )
 
-ggsave(file.path(OUTPUT_DIR, "inference_robustness.png"), combined, width = 12, height = 14, dpi = 150)
+ggsave(file.path(OUTPUT_DIR, "inference_robustness.png"), combined, width = 14, height = 16, dpi = 150)
 cat(sprintf("\nSaved: %s\n", file.path(OUTPUT_DIR, "inference_robustness.png")))
 
-cat("\n\n5. RECOMMENDATIONS\n")
-cat(strrep("-", 70), "\n")
+cat("\n\n5. KEY FINDINGS\n")
+cat(strrep("=", 70), "\n")
 cat("
-When to use each method:
-- HC1 (Huber-White): Corrects heteroskedasticity only. NOT sufficient for REDS.
-- Village clustering: Appropriate for within-village analysis. Use with 193 clusters.
-- State clustering: Use when treatment/policy varies at state level OR
-                    unobserved state factors affect outcome. Only 13 clusters -
-                    use wild bootstrap.
-
-For REDS data:
-- Always cluster at minimum village level
-- For caste-land relationships: village clustering is appropriate
-- For policy effects: consider state clustering with wild bootstrap
-- Results that flip under clustering should not be trusted
+1. With 193 village clusters, wild bootstrap at village level is reliable.
+2. With only 13 state clusters, wild bootstrap is essential for state-level.
+3. Results should survive BOTH village and state bootstrap to be trusted.
+4. Core caste-land relationships (SC/ST, OBC) are robust across all methods.
+5. Some religion-based results (Muslim, Hindu) are fragile under clustering.
 ")

@@ -105,7 +105,7 @@ cat("\n\n4. END-OF-DAY RUSHING\n")
 cat(strrep("-", 40), "\n")
 
 valid_df <- df %>%
-  filter(duration_mins > 0 & duration_mins < 480 & !is.na(start_hour))
+  filter(duration_mins >= 5 & duration_mins <= 240 & !is.na(start_hour))
 
 duration_by_hour <- valid_df %>%
   group_by(source, start_hour) %>%

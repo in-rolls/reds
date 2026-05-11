@@ -193,6 +193,16 @@ fe_results$scst_s2 <- run_fe_comparison(
   "is_sc_st", "SC/ST (SEPRI2)"
 )
 
+fe_results$obc_s1 <- run_fe_comparison(
+  filter(df, source == "SEPRI1" & !is.na(is_obc)),
+  "is_obc", "OBC (SEPRI1)"
+)
+
+fe_results$obc_s2 <- run_fe_comparison(
+  filter(df, source == "SEPRI2" & !is.na(is_obc)),
+  "is_obc", "OBC (SEPRI2)"
+)
+
 cat("\n\n3. INTERVIEWER-SPECIFIC MEANS\n")
 cat(strrep("-", 50), "\n")
 

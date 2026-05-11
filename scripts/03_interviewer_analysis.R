@@ -56,7 +56,7 @@ analyze_interviewers <- function(data, label) {
   cat(sprintf("\nRaw interviews per interviewer-day - Median: %.0f, Mean: %.1f\n",
               median(interviews_per_day_raw$n), mean(interviews_per_day_raw$n)))
 
-  valid_duration <- data %>% filter(duration_mins > 0 & duration_mins < 480)
+  valid_duration <- data %>% filter(duration_mins >= 5 & duration_mins <= 240)
   cat(sprintf("Interview duration (mins) - Median: %.0f, Mean: %.1f\n",
               median(valid_duration$duration_mins), mean(valid_duration$duration_mins)))
 
@@ -113,7 +113,7 @@ make_plots <- function(results, label) {
          title = sprintf("%s: Interview Start Times", label)) +
     theme_minimal()
 
-  valid_duration <- data %>% filter(duration_mins > 0 & duration_mins < 480)
+  valid_duration <- data %>% filter(duration_mins >= 5 & duration_mins <= 240)
   p4 <- ggplot(valid_duration, aes(x = duration_mins)) +
     geom_histogram(bins = 40, fill = "#4a7c9b", color = "white", alpha = 0.85) +
     geom_vline(aes(xintercept = median(duration_mins), color = "Median"),
