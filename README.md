@@ -12,23 +12,6 @@ Analysis scripts for REDS (Rural Economic and Demographic Survey) data quality a
 
 No state overlap between SEPRI1 and SEPRI2.
 
-## Scripts
-
-| Script | Description | Output |
-|--------|-------------|--------|
-| `01_obs_per_village.R` | Village-level counts (clean_reds.csv) | `figs/obs_per_village_hist.png` |
-| `02_obs_per_village_full.R` | Village/panchayat distributions | `figs/obs_per_village_full_hist.png`, `figs/obs_per_panchayat_full_hist.png` |
-| `03_interviewer_analysis.R` | Interviewer patterns, times, durations | `figs/interviewer_time_analysis.png` |
-| `04_data_quality.R` | Missing data, impossible values, duplicates | `figs/data_quality.png` |
-| `05_temporal_patterns.R` | Fieldwork timeline, daily volume, rushing | `figs/temporal_patterns.png` |
-| `06_interviewer_effects.R` | Heaping, caste distributions, quality | `figs/interviewer_effects.png` |
-| `07_panel_attrition.R` | Panel attrition (SEPRI2 only) | `figs/panel_attrition.png` |
-| `08_shrug_merge.R` | SHRUG census linkage and validation | `figs/shrug_validation.png`, `data/reds_shrug_matched.csv` |
-| `09_interviewer_fe.R` | Interviewer fixed effects / variance decomposition | `figs/interviewer_fe.png` |
-| `10_inference_robustness.R` | HC1 vs cluster SE comparison, wild bootstrap | `figs/inference_robustness.png` |
-| `11_jensenius_replication.R` | Replication of Jensenius (2015) with wild bootstrap | `figs/jensenius_replication.png` |
-| `12_munshi_rosenzweig_replication.R` | Replication of Munshi & Rosenzweig (2015) with wild bootstrap | `figs/munshi_rosenzweig_replication.png` |
-
 ## Key Findings
 
 ### Data Quality Issues
@@ -207,6 +190,23 @@ The negative jati income effect on migration is robust across specifications and
 1. Use state codes directly (standard)
 2. Fuzzy match village names within state to SHRUG village names
 3. Or use REDS documentation for district/village code crosswalk if available
+
+## Scripts
+
+| Script | Description | Output |
+|--------|-------------|--------|
+| `01_obs_per_village.R` | Village-level counts (clean_reds.csv) | `figs/obs_per_village_hist.png` |
+| `02_obs_per_village_full.R` | Village/panchayat distributions | `figs/obs_per_village_full_hist.png`, `figs/obs_per_panchayat_full_hist.png` |
+| `03_interviewer_analysis.R` | Interviewer patterns, times, durations | `figs/interviewer_time_analysis.png` |
+| `04_data_quality.R` | Missing data, impossible values, duplicates | `figs/data_quality.png` |
+| `05_temporal_patterns.R` | Fieldwork timeline, daily volume, rushing | `figs/temporal_patterns.png` |
+| `06_interviewer_effects.R` | Heaping, caste distributions, quality | `figs/interviewer_effects.png` |
+| `07_panel_attrition.R` | Panel attrition (SEPRI2 only) | `figs/panel_attrition.png` |
+| `08_shrug_merge.R` | SHRUG census linkage and validation | `figs/shrug_validation.png`, `data/reds_shrug_matched.csv` |
+| `09_interviewer_fe.R` | Interviewer fixed effects / variance decomposition | `figs/interviewer_fe.png` |
+| `10_inference_robustness.R` | HC1 vs cluster SE comparison, wild bootstrap | `figs/inference_robustness.png` |
+| `11_jensenius_replication.R` | Replication of Jensenius (2015) with wild bootstrap | `figs/jensenius_replication.png` |
+| `12_munshi_rosenzweig_replication.R` | Replication of Munshi & Rosenzweig (2015) with wild bootstrap | `figs/munshi_rosenzweig_replication.png` |
 
 ## Dependencies
 
