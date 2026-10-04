@@ -57,7 +57,7 @@ p_missing <- ggplot(missing_heatmap, aes(x = variable, y = factor(state), fill =
   theme_minimal() +
   theme(axis.text.x = element_text(angle = 45, hjust = 1))
 
-cat("\n\n2. IMPOSSIBLE VALUES\n")
+cat("\n\n2. RANGE AND DURATION CHECKS\n")
 cat(strrep("-", 40), "\n")
 
 df <- df %>%
@@ -70,7 +70,7 @@ df <- df %>%
 impossible_duration <- df %>%
   filter(duration_mins < 5 | duration_mins > 240)
 
-cat(sprintf("Interviews with impossible duration (<5min or >4hrs): %d (%.2f%%)\n",
+cat(sprintf("Interviews with flagged duration (<5min or >4hrs): %d (%.2f%%)\n",
             nrow(impossible_duration), 100 * nrow(impossible_duration) / nrow(df)))
 
 impossible_by_source <- impossible_duration %>%
@@ -165,7 +165,7 @@ cat(sprintf("Interviewers with 10+ interviews: %d\n", nrow(interviewer_quality))
 problematic <- interviewer_quality %>%
   filter(pct_impossible_duration > 5 | pct_missing_land > 20)
 
-cat(sprintf("Interviewers with >5%% impossible durations OR >20%% missing land: %d\n", nrow(problematic)))
+cat(sprintf("Interviewers with >5%% flagged durations OR >20%% missing land: %d\n", nrow(problematic)))
 
 if (nrow(problematic) > 0) {
   cat("\nTop problematic interviewers:\n")
@@ -177,7 +177,7 @@ p_interviewer <- ggplot(interviewer_quality, aes(x = pct_impossible_duration, y 
   geom_hline(yintercept = 20, linetype = "dotted", color = "red") +
   geom_vline(xintercept = 5, linetype = "dotted", color = "red") +
   scale_size_continuous(range = c(1, 8), name = "N Interviews") +
-  labs(x = "% Impossible Duration", y = "% Missing Land Ownership",
+  labs(x = "% Flagged Duration", y = "% Missing Land Ownership",
        title = "Interviewer Data Quality (red lines = thresholds)") +
   theme_minimal()
 

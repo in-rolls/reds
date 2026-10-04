@@ -17,7 +17,7 @@ No state overlap between SEPRI1 and SEPRI2.
 ### Sample Structure
 [Script](scripts/02_obs_per_village_full.R) | [Figure](figs/obs_per_village_full_hist.png)
 
-Village sample sizes vary dramatically: 2 to 5,134 HH (2,567x ratio). This extreme variation affects clustering and inference.
+Village sample sizes range from 2 to 5,134 HH (2,567x ratio). This variation matters for weighting and clustered inference.
 
 **Cluster structure:** 92,996 obs across 193 villages, 83 districts, 13 states
 
@@ -31,8 +31,8 @@ Village sample sizes vary dramatically: 2 to 5,134 HH (2,567x ratio). This extre
 ### Data Quality Issues
 [Script](scripts/04_data_quality.R) | [Figure](figs/data_quality.png)
 
-**Impossible Values:**
-- 990 interviews (1.06%) with impossible duration (<5 min or >4 hours)
+**Duration flags:**
+- 990 interviews (1.06%) with recorded duration below 5 minutes or above 4 hours
 - Mostly in SEPRI2 (779 vs 211 in SEPRI1)
 - No duplicates found
 
@@ -68,7 +68,7 @@ Strong evidence of rounding:
 ### Duration vs Quality
 [Script](scripts/06_interviewer_effects.R) | [Figure](figs/interviewer_effects.png)
 
-Shorter interviews have MORE missing data:
+Shorter recorded interviews have more missing land responses:
 - SEPRI1 <60 min: 15.2% missing land; 90-120 min: 4.6%
 - SEPRI2 <60 min: 8.5% missing land; 90-120 min: 2.1%
 - Correlation: r = -0.37 (SEPRI1), r = -0.19 (SEPRI2)
@@ -90,7 +90,7 @@ How much variance do interviewers explain beyond village-level differences?
 **Key finding:** Land ownership shows low interviewer effects (expected for objective measures). However, **caste variables show high interviewer effects** (14-16% ICC), meaning interviewers within the same village get systematically different caste distributions. Possible explanations:
 - Caste boundaries are subjective (esp. OBC vs General)
 - Non-random HH assignment within villages (caste-segregated hamlets)
-- Interviewer bias or fabrication
+- Differences in classification, recording or household assignment that require record-level follow-up
 
 ### Inference Robustness (Clustering Sensitivity)
 [Script](scripts/10_inference_robustness.R) | [Figure](figs/inference_robustness.png)
